@@ -118,29 +118,40 @@ def discover_bots(
 
     If `include` is given, that list wins (and order is preserved).
     Otherwise every direct subdirectory of `bots_dir` is treated as a bot.
+
+    An entry may be plain (`himyar-tickets`, unit assumed to be
+    `himyar-tickets.service`) or an explicit mapping for the cases where the
+    folder and the systemd unit are named differently:
+
+        himyar-warden=himyar-welcome-bot
     """
     base = Path(bots_dir)
     excluded = {e.strip() for e in exclude if e.strip()}
 
     if include:
-        names = [n.strip() for n in include if n.strip()]
+        entries = [n.strip() for n in include if n.strip()]
     else:
         try:
-            names = sorted(p.name for p in base.iterdir() if p.is_dir())
+            entries = sorted(p.name for p in base.iterdir() if p.is_dir())
         except OSError:
-            names = []
+            entries = []
 
     targets: list[BotTarget] = []
-    for name in names:
-        if name in excluded:
+    for entry in entries:
+        folder, _, override = entry.partition("=")
+        folder = folder.strip()
+        if not folder or folder in excluded:
             continue
-        directory = base / name
+        unit = (override.strip() or folder)
+        if not unit.endswith(".service"):
+            unit += ".service"
+        directory = base / folder
         env = read_env_file(directory / ".env")
         token = next((env[k] for k in TOKEN_KEYS if env.get(k)), None)
         targets.append(
             BotTarget(
-                name=name,
-                unit=f"{name}.service",
+                name=folder,
+                unit=unit,
                 directory=directory,
                 token=token,
             )
