@@ -1,0 +1,17 @@
+[Unit]
+Description=Himyar Status Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=himyar
+Group=himyar
+WorkingDirectory=/home/himyar/bots/himyar-status
+ExecStart=/home/himyar/bots/himyar-status/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

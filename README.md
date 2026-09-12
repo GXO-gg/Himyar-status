@@ -1,0 +1,63 @@
+# Himyar Status Bot
+
+Private monitoring for the Himyar bot suite. Single-server-owner tool — no per-guild
+config system, no public invite.
+
+## What it does
+
+Every 60 seconds it edits two pinned messages:
+
+| View | Contents | Where |
+|---|---|---|
+| **Light** | online/offline, current uptime, last restart | main Himyar server |
+| **Full** | the above + servers each bot is in, member reach, totals | private server only |
+
+## How it gets the data
+
+No changes to the other bots.
+
+1. **Liveness / uptime / restarts** — `systemctl show` on each bot's unit
+   (`ActiveState`, `ActiveEnterTimestamp`, `ActiveExitTimestamp`, `NRestarts`).
+   Read-only, no sudo needed.
+2. **Server lists** — each bot's token is read from its own `.env` and used for a
+   single `GET /users/@me/guilds?with_counts=true` against the Discord API,
+   refreshed every 5 minutes.
+
+Because of (2) this bot's host directory holds read access to every bot token on
+the box. Keep `.env` at `chmod 600` and the repo free of it.
+
+## Safety rail
+
+If `FULL_GUILD_ID` resolves to the same server as `LIGHT_GUILD_ID`, the full view
+is refused and logged rather than posted. The sensitive view cannot land on the
+public server by misconfiguration.
+
+## Layout
+
+```
+bot.py                  Discord client, the two dashboards, alerting
+collector.py            systemd + Discord API reads (no writes anywhere)
+.env.example            config template
+himyar-status.service   systemd unit
+```
+
+## Deploy (Hetzner)
+
+```bash
+cd ~/bots
+git clone https://github.com/GXO-gg/himyar-status.git
+cd himyar-status
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt
+cp .env.example .env && chmod 600 .env && nano .env
+venv/bin/python bot.py          # foreground test, Ctrl+C when the dashboards appear
+sudo cp himyar-status.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now himyar-status
+systemctl status himyar-status
+```
+
+## Permissions needed
+
+In both servers: View Channel, Send Messages, Embed Links, Read Message History,
+Manage Messages (to pin). No privileged intents.
