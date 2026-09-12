@@ -9,8 +9,10 @@ Every 60 seconds it edits two pinned messages:
 
 | View | Contents | Where |
 |---|---|---|
-| **Light** | online/offline, current uptime, last restart | main Himyar server |
-| **Full** | the above + servers each bot is in, member reach, totals | private server only |
+| **Light** | online/offline, current uptime, last restart | channel on the main Himyar server, every 60s |
+| **Full** | the above + servers each bot is in, member reach, totals | DM to the owner, hourly |
+
+`/health` returns the full view on demand, visible only to the owner.
 
 ## How it gets the data
 
@@ -21,16 +23,16 @@ No changes to the other bots.
    Read-only, no sudo needed.
 2. **Server lists** — each bot's token is read from its own `.env` and used for a
    single `GET /users/@me/guilds?with_counts=true` against the Discord API,
-   refreshed every 5 minutes.
+   refreshed hourly (and on `/health`).
 
 Because of (2) this bot's host directory holds read access to every bot token on
 the box. Keep `.env` at `chmod 600` and the repo free of it.
 
 ## Safety rail
 
-If `FULL_GUILD_ID` resolves to the same server as `LIGHT_GUILD_ID`, the full view
-is refused and logged rather than posted. The sensitive view cannot land on the
-public server by misconfiguration.
+The full view defaults to DM, so the sensitive data never touches a server. If
+`FULL_VIEW_MODE=channel` is used instead and that channel resolves to the same
+server as `LIGHT_GUILD_ID`, the post is refused and logged.
 
 ## Layout
 
@@ -59,5 +61,8 @@ systemctl status himyar-status
 
 ## Permissions needed
 
-In both servers: View Channel, Send Messages, Embed Links, Read Message History,
-Manage Messages (to pin). No privileged intents.
+In the main server: View Channel, Send Messages, Embed Links, Read Message
+History, Manage Messages (to pin). No privileged intents.
+
+`/health` additionally needs the bot invited with the `applications.commands`
+scope. Without it the DM dashboard still works; only the command is missing.
